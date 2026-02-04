@@ -1,5 +1,5 @@
 # Build workflow for YTLitePlus without incompatible tweaks
-# Removed: YTHoldForSpeed, YTUHD (incompatible with YouTube 21.x)
+# Removed: YTHoldForSpeed, YTUHD, Return-YouTube-Dislikes (causes Shorts crashes on YouTube 21.x)
 
 name: Build YTLitePlus (Compatible)
 
@@ -227,12 +227,12 @@ jobs:
           ### Removed Tweaks (Incompatible with YouTube 21.x)
           - ❌ YTHoldForSpeed  
           - ❌ YTUHD
+          - ❌ Return YouTube Dislikes (causes Shorts crashes)
           
           ### Included Tweaks
           - ✅ YTLite 5.0.1
           - ✅ iSponsorBlock
           - ✅ YouPiP
-          - ✅ Return YouTube Dislikes
           - ✅ YTABConfig
           - ✅ DontEatMyContent
           - ✅ YTVideoOverlay
@@ -265,6 +265,7 @@ jobs:
           echo '**Removed incompatible tweaks:**' >> $GITHUB_STEP_SUMMARY
           echo '- YTHoldForSpeed' >> $GITHUB_STEP_SUMMARY
           echo '- YTUHD' >> $GITHUB_STEP_SUMMARY
+          echo '- Return YouTube Dislikes (Shorts crash)' >> $GITHUB_STEP_SUMMARY
 
       - name: Job Summary - Artifact Upload
         if: ${{ inputs.upload_artifact }}
