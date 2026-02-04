@@ -50,7 +50,7 @@
 #import "Tweaks/YouTubeHeader/YTRightNavigationButtons.h"
 #import "Tweaks/YouTubeHeader/YTInlinePlayerBarView.h"
 
-#define LOC(x) [tweakBundle localizedStringForKey:x value:nil table:nil]
+#define LOC(x) (tweakBundle ? [tweakBundle localizedStringForKey:x value:x table:nil] : x)
 #define YT_BUNDLE_ID @"com.google.ios.youtube"
 #define YT_NAME @"YouTube"
 #define LOWCONTRASTMODE_CUTOFF_VERSION @"17.38.10"
