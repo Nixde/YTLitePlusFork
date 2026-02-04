@@ -1,5 +1,12 @@
 # Original idea by @ISnackable. Many thanks to him for handling the most hardest parts!
 # https://github.com/ISnackable/CercubePlus/blob/main/.github/workflows/Build.yml
+#
+# SDK 26.0 Compatibility Fix:
+# - Changed runner from macos-15-intel to macos-14 to avoid Xcode 16.5+ with incompatible SDK 26.0
+# - Added explicit SDKROOT setting to force use of downloaded SDK version (17.5 by default)
+# - SDK 26.0 introduces breaking changes in C standard library modules that are not yet
+#   supported by Theos and related toolchains (Alderis, libcolorpicker, etc.)
+# - This fix ensures the build uses a compatible SDK version until the ecosystem is updated
 
 name: Build and Release YTLitePlus
 
@@ -54,7 +61,7 @@ concurrency:
 jobs:
   build:
     name: Build YTLitePlus
-    runs-on: macos-15-intel
+    runs-on: macos-14
     permissions:
       contents: write
 
@@ -112,6 +119,17 @@ jobs:
           ./theos-jailed/install
         env:
           THEOS: ${{ github.workspace }}/theos
+      
+      - name: Force SDK Selection and Prevent System SDK Conflicts
+        run: |
+          # Prevent Xcode from using incompatible SDK 26.0 from system
+          # Force use of the downloaded SDK version
+          echo "SDKROOT=${{ github.workspace }}/theos/sdks/iPhoneOS${{ inputs.sdk_version }}.sdk" >> $GITHUB_ENV
+          echo "DEVELOPER_DIR=$(xcode-select -p)" >> $GITHUB_ENV
+          
+          # Verify SDK is correctly set
+          echo "Using SDK: ${{ github.workspace }}/theos/sdks/iPhoneOS${{ inputs.sdk_version }}.sdk"
+          ls -la ${{ github.workspace }}/theos/sdks/
         
       - name: Fix Compiling
         run: |
@@ -173,8 +191,13 @@ jobs:
           sed -i '' "s/^PACKAGE_VERSION.*$/PACKAGE_VERSION = ${{ env.YT_VERSION }}-5.0.1/" Makefile
           sed -i '' "s/^export TARGET.*$/export TARGET = iphone:clang:${{ inputs.sdk_version }}:14.0/" Makefile
           sed -i '' "s/^export SDK_PATH.*$/export SDK_PATH = \$(THEOS)\/sdks\/iPhoneOS${{ inputs.sdk_version }}.sdk\//" Makefile
-          # Build the package
-          make package SIDELOAD=1 THEOS_PACKAGE_SCHEME=rootless FINALPACKAGE=1
+          
+          # Verify SDK settings before build
+          echo "SDKROOT is set to: $SDKROOT"
+          echo "Building with TARGET: iphone:clang:${{ inputs.sdk_version }}:14.0"
+          
+          # Build the package with explicit SDK path
+          make package SIDELOAD=1 THEOS_PACKAGE_SCHEME=rootless FINALPACKAGE=1 SDKROOT="$SDKROOT"
           # Rename the package based on the version
           (mv "packages/$(ls -t packages | head -n1)" "packages/YTLitePlus_${{ env.YT_VERSION }}_5.0.1.ipa")
           # Pass package name to the upload step
