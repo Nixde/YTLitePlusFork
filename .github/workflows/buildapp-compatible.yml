@@ -1,5 +1,5 @@
 # Build workflow for YTLitePlus without incompatible tweaks
-# Removed: iSponsorBlock, YTHoldForSpeed, YTUHD (incompatible with YouTube 21.x)
+# Removed: YTHoldForSpeed, YTUHD (incompatible with YouTube 21.x)
 
 name: Build YTLitePlus (Compatible)
 
@@ -225,12 +225,12 @@ jobs:
           **Build Date:** $TODAY
           
           ### Removed Tweaks (Incompatible with YouTube 21.x)
-          - ❌ iSponsorBlock
           - ❌ YTHoldForSpeed  
           - ❌ YTUHD
           
           ### Included Tweaks
           - ✅ YTLite 5.0.1
+          - ✅ iSponsorBlock
           - ✅ YouPiP
           - ✅ Return YouTube Dislikes
           - ✅ YTABConfig
@@ -263,7 +263,6 @@ jobs:
           echo '### 📺 Build Complete (Compatible Version)' >> $GITHUB_STEP_SUMMARY
           echo '' >> $GITHUB_STEP_SUMMARY
           echo '**Removed incompatible tweaks:**' >> $GITHUB_STEP_SUMMARY
-          echo '- iSponsorBlock' >> $GITHUB_STEP_SUMMARY
           echo '- YTHoldForSpeed' >> $GITHUB_STEP_SUMMARY
           echo '- YTUHD' >> $GITHUB_STEP_SUMMARY
 
