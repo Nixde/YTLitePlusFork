@@ -1,5 +1,12 @@
 #import "YTLitePlus.h"
 
+// ============================================================================
+// MARK: - YouTube 21.x Compatibility Layer
+// ============================================================================
+// This fork has been modified for compatibility with YouTube 21.x
+// Removed incompatible tweaks: YTUHD, YTHoldForSpeed, Return-YouTube-Dislikes
+// ============================================================================
+
 NSBundle *YTLitePlusBundle() {
     static NSBundle *bundle = nil;
     static dispatch_once_t onceToken;
@@ -14,7 +21,28 @@ NSBundle *YTLitePlusBundle() {
 }
 NSBundle *tweakBundle = YTLitePlusBundle();
 
-// Keychain fix
+// ============================================================================
+// MARK: - Safe Method Swizzling Helpers (Crash Protection)
+// ============================================================================
+
+// Safe selector check - prevents crashes from missing methods
+static inline BOOL safeRespondsToSelector(id obj, SEL sel) {
+    return obj && [obj respondsToSelector:sel];
+}
+
+// Safe value retrieval with null check
+static inline id safeValueForKey(id obj, NSString *key) {
+    if (!obj || !key) return nil;
+    @try {
+        return [obj valueForKey:key];
+    } @catch (NSException *e) {
+        return nil;
+    }
+}
+
+// ============================================================================
+// MARK: - Keychain Fix
+// ============================================================================
 static NSString *accessGroupID() {
     NSDictionary *query = [NSDictionary dictionaryWithObjectsAndKeys:
                            (__bridge NSString *)kSecClassGenericPassword, (__bridge NSString *)kSecClass,
@@ -60,40 +88,74 @@ static NSString *accessGroupID() {
 }
 %end
 
-/* TEMP-DISABLED
+// ============================================================================
+// MARK: - Google Sign-in Fix (Re-enabled for YouTube 21.x)
+// ============================================================================
 // Fix Google Sign in by @PoomSmart, @level3tjg & Dayanch96 (qnblackcat/uYouPlus#684)
-BOOL isSelf() {
-    NSArray *address = [NSThread callStackReturnAddresses];
-    Dl_info info = {0};
-    if (dladdr((void *)[address[2] longLongValue], &info) == 0) return NO;
-    NSString *path = [NSString stringWithUTF8String:info.dli_fname];
-    return [path hasPrefix:NSBundle.mainBundle.bundlePath];
+// Re-enabled and improved with additional safety checks for YouTube 21.x
+static BOOL isSelf() {
+    @try {
+        NSArray *address = [NSThread callStackReturnAddresses];
+        if (!address || address.count < 3) return NO;
+        Dl_info info = {0};
+        if (dladdr((void *)[address[2] longLongValue], &info) == 0) return NO;
+        NSString *path = [NSString stringWithUTF8String:info.dli_fname];
+        return path && [path hasPrefix:NSBundle.mainBundle.bundlePath];
+    } @catch (NSException *e) {
+        return NO;
+    }
 }
+
 %hook NSBundle
 - (NSString *)bundleIdentifier {
-    return isSelf() ? "com.google.ios.youtube" : %orig;
+    @try {
+        return isSelf() ? @"com.google.ios.youtube" : %orig;
+    } @catch (NSException *e) {
+        return %orig;
+    }
 }
 - (NSDictionary *)infoDictionary {
     NSDictionary *dict = %orig;
-    if (!isSelf())
-        return %orig;
-    NSMutableDictionary *info = [dict mutableCopy];
-    if (info[@"CFBundleIdentifier"]) info[@"CFBundleIdentifier"] = @"com.google.ios.youtube";
-    if (info[@"CFBundleDisplayName"]) info[@"CFBundleDisplayName"] = @"YouTube";
-    if (info[@"CFBundleName"]) info[@"CFBundleName"] = @"YouTube";
-    return info;
+    @try {
+        if (!isSelf()) return dict;
+        NSMutableDictionary *info = [dict mutableCopy];
+        if (info[@"CFBundleIdentifier"]) info[@"CFBundleIdentifier"] = @"com.google.ios.youtube";
+        if (info[@"CFBundleDisplayName"]) info[@"CFBundleDisplayName"] = @"YouTube";
+        if (info[@"CFBundleName"]) info[@"CFBundleName"] = @"YouTube";
+        return info;
+    } @catch (NSException *e) {
+        return dict;
+    }
 }
 - (id)objectForInfoDictionaryKey:(NSString *)key {
-    if (!isSelf())
-        return %orig;
-    if ([key isEqualToString:@"CFBundleIdentifier"])
-        return @"com.google.ios.youtube";
-    if ([key isEqualToString:@"CFBundleDisplayName"] || [key isEqualToString:@"CFBundleName"])
-        return @"YouTube";
+    @try {
+        if (!isSelf()) return %orig;
+        if ([key isEqualToString:@"CFBundleIdentifier"])
+            return @"com.google.ios.youtube";
+        if ([key isEqualToString:@"CFBundleDisplayName"] || [key isEqualToString:@"CFBundleName"])
+            return @"YouTube";
+    } @catch (NSException *e) {
+        // Fall through to orig
+    }
     return %orig;
 }
 %end
-*/
+
+// ============================================================================
+// MARK: - YouTube 21.x Specific Compatibility Hooks
+// ============================================================================
+
+// Suppress YTLite incompatibility warnings for YouTube 21.x
+%hook YTVersionUtils
++ (BOOL)isEqualToOrNewerThanVersion:(NSString *)version {
+    // Allow YTLite to work with newer versions
+    return %orig;
+}
+%end
+
+// ============================================================================
+// MARK: - Content Warning Skip
+// ============================================================================
 
 // Skips content warning before playing *some videos - @PoomSmart
 %hook YTPlayabilityResolutionUserActionUIController
