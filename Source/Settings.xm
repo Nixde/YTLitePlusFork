@@ -98,8 +98,16 @@ static const NSInteger YTLiteSection = 789;
     YTSettingsViewController *settingsViewController = [self valueForKey:@"_settingsViewControllerDelegate"];
 
     // Add item for going to the YTLitePlus GitHub page
+    // Build version string safely - use localized format if available, otherwise fallback
+    NSString *versionFormat = LOC(@"VERSION");
+    NSString *versionString;
+    if ([versionFormat containsString:@"%@"]) {
+        versionString = [NSString stringWithFormat:versionFormat, @(OS_STRINGIFY(TWEAK_VERSION))];
+    } else {
+        versionString = [NSString stringWithFormat:@"YTLitePlus %@", @(OS_STRINGIFY(TWEAK_VERSION))];
+    }
     YTSettingsSectionItem *main = [%c(YTSettingsSectionItem)
-        itemWithTitle:[NSString stringWithFormat:LOC(@"VERSION"), @(OS_STRINGIFY(TWEAK_VERSION))]
+        itemWithTitle:versionString
         titleDescription:LOC(@"VERSION_CHECK")
         accessibilityIdentifier:nil
         detailTextBlock:nil
