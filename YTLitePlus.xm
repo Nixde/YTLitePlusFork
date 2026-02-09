@@ -161,17 +161,17 @@ BOOL isSelf() {
 	%orig();
     // Safe ivar access - check if ivar exists before accessing to prevent crash on YT 21.x
     @try {
-        Ivar ivar;
-        ivar = class_getInstanceVariable([self class], "_previousButtonView");
-        if (ivar) MSHookIvar<YTTransportControlsButtonView *>(self, "_previousButtonView").backgroundColor = nil;
-        ivar = class_getInstanceVariable([self class], "_nextButtonView");
-        if (ivar) MSHookIvar<YTTransportControlsButtonView *>(self, "_nextButtonView").backgroundColor = nil;
-        ivar = class_getInstanceVariable([self class], "_seekBackwardAccessibilityButtonView");
-        if (ivar) MSHookIvar<YTTransportControlsButtonView *>(self, "_seekBackwardAccessibilityButtonView").backgroundColor = nil;
-        ivar = class_getInstanceVariable([self class], "_seekForwardAccessibilityButtonView");
-        if (ivar) MSHookIvar<YTTransportControlsButtonView *>(self, "_seekForwardAccessibilityButtonView").backgroundColor = nil;
-        ivar = class_getInstanceVariable([self class], "_playPauseButton");
-        if (ivar) MSHookIvar<YTPlaybackButton *>(self, "_playPauseButton").backgroundColor = nil;
+        Class cls = [self class];
+        if (class_getInstanceVariable(cls, "_previousButtonView") != NULL)
+            MSHookIvar<YTTransportControlsButtonView *>(self, "_previousButtonView").backgroundColor = nil;
+        if (class_getInstanceVariable(cls, "_nextButtonView") != NULL)
+            MSHookIvar<YTTransportControlsButtonView *>(self, "_nextButtonView").backgroundColor = nil;
+        if (class_getInstanceVariable(cls, "_seekBackwardAccessibilityButtonView") != NULL)
+            MSHookIvar<YTTransportControlsButtonView *>(self, "_seekBackwardAccessibilityButtonView").backgroundColor = nil;
+        if (class_getInstanceVariable(cls, "_seekForwardAccessibilityButtonView") != NULL)
+            MSHookIvar<YTTransportControlsButtonView *>(self, "_seekForwardAccessibilityButtonView").backgroundColor = nil;
+        if (class_getInstanceVariable(cls, "_playPauseButton") != NULL)
+            MSHookIvar<YTPlaybackButton *>(self, "_playPauseButton").backgroundColor = nil;
     } @catch (NSException *e) {
         NSLog(@"[YTLitePlus] gHideVideoPlayerShadowOverlayButtons ivar access failed: %@", e);
     }
