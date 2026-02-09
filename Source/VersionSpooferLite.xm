@@ -42,6 +42,12 @@ static NSString* getAppVersionForSpoofedVersion(int spoofedVersion) {
     if (!isVersionSpooferEnabled()) {
         return %orig;
     }
+    // Don't spoof on YouTube 21.x+ since all spoof targets are 17-19.x
+    // which would cause server-side incompatibilities and crashes
+    NSString *realVersion = %orig;
+    if ([realVersion compare:@"21.0" options:NSNumericSearch] != NSOrderedAscending) {
+        return %orig;
+    }
     int spoofedVersion = appVersionSpoofer();
     NSString *appVersion = getAppVersionForSpoofedVersion(spoofedVersion);
     return appVersion ? appVersion : %orig;

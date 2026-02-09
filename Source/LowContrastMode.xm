@@ -490,6 +490,15 @@ static inline BOOL customContrastMode() {
 
 // Constructor
 %ctor {
+    // LowContrastMode is only compatible with YouTube v19.01.1-v20.21.6
+    // Skip initialization on YouTube 21.x+ to prevent crashes
+    NSString *ytVersion = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"];
+    BOOL isYT21OrLater = ([ytVersion compare:@"21.0" options:NSNumericSearch] != NSOrderedAscending);
+    if (isYT21OrLater) {
+        NSLog(@"[YTLitePlus] LowContrastMode disabled on YouTube 21.x+ (incompatible)");
+        return;
+    }
+
     %init;
     if (lowContrastMode()) {
         %init(gLowContrastMode);

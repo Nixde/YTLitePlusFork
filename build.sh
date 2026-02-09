@@ -1,5 +1,6 @@
 #!/bin/bash
 # To build, either place the IPA file in the project's root directory, or get the path to the IPA, then run `./build.sh`
+# For YouTube 21.x compatible builds, use `./build_compatible.sh` instead
 
 read -p $'\e[34m==> \e[1;39mPath to the decrypted YouTube.ipa or YouTube.app. If nothing is provied, any ipa/app in the project\'s root directory will be used: ' PATHTOYT
 

@@ -159,11 +159,22 @@ BOOL isSelf() {
 %hook YTMainAppControlsOverlayView
 - (void)layoutSubviews {
 	%orig();
-    MSHookIvar<YTTransportControlsButtonView *>(self, "_previousButtonView").backgroundColor = nil;
-    MSHookIvar<YTTransportControlsButtonView *>(self, "_nextButtonView").backgroundColor = nil;
-    MSHookIvar<YTTransportControlsButtonView *>(self, "_seekBackwardAccessibilityButtonView").backgroundColor = nil;
-    MSHookIvar<YTTransportControlsButtonView *>(self, "_seekForwardAccessibilityButtonView").backgroundColor = nil;
-    MSHookIvar<YTPlaybackButton *>(self, "_playPauseButton").backgroundColor = nil;
+    // Safe ivar access - check if ivar exists before accessing to prevent crash on YT 21.x
+    @try {
+        Ivar ivar;
+        ivar = class_getInstanceVariable([self class], "_previousButtonView");
+        if (ivar) MSHookIvar<YTTransportControlsButtonView *>(self, "_previousButtonView").backgroundColor = nil;
+        ivar = class_getInstanceVariable([self class], "_nextButtonView");
+        if (ivar) MSHookIvar<YTTransportControlsButtonView *>(self, "_nextButtonView").backgroundColor = nil;
+        ivar = class_getInstanceVariable([self class], "_seekBackwardAccessibilityButtonView");
+        if (ivar) MSHookIvar<YTTransportControlsButtonView *>(self, "_seekBackwardAccessibilityButtonView").backgroundColor = nil;
+        ivar = class_getInstanceVariable([self class], "_seekForwardAccessibilityButtonView");
+        if (ivar) MSHookIvar<YTTransportControlsButtonView *>(self, "_seekForwardAccessibilityButtonView").backgroundColor = nil;
+        ivar = class_getInstanceVariable([self class], "_playPauseButton");
+        if (ivar) MSHookIvar<YTPlaybackButton *>(self, "_playPauseButton").backgroundColor = nil;
+    } @catch (NSException *e) {
+        NSLog(@"[YTLitePlus] gHideVideoPlayerShadowOverlayButtons ivar access failed: %@", e);
+    }
 }
 %end
 %end
@@ -469,9 +480,12 @@ BOOL isTabSelected = NO;
     %hook YTInlinePlayerBarContainerView
     - (void)didPressScrubber:(id)arg1 {
         %orig;
-        // Get access to the seekToTime method
-        YTMainAppVideoPlayerOverlayViewController *mainAppController = [self.delegate valueForKey:@"_delegate"];
-        YTPlayerViewController *playerViewController = [mainAppController valueForKey:@"parentViewController"];
+        @try {
+            // Get access to the seekToTime method
+            YTMainAppVideoPlayerOverlayViewController *mainAppController = [self.delegate valueForKey:@"_delegate"];
+            if (!mainAppController) return;
+            YTPlayerViewController *playerViewController = [mainAppController valueForKey:@"parentViewController"];
+            if (!playerViewController) return;
         // Get the X position of this tap from arg1
         UIGestureRecognizer *gestureRecognizer = (UIGestureRecognizer *)arg1;
         CGPoint location = [gestureRecognizer locationInView:self];
@@ -482,6 +496,9 @@ BOOL isTabSelected = NO;
         double timestamp = [mainAppController totalTime] * timestampFraction;
         // Jump to the timestamp
         [playerViewController seekToTime:timestamp];
+        } @catch (NSException *e) {
+            NSLog(@"[YTLitePlus] YTTapToSeek failed: %@", e);
+        }
     }
     %end
 %end
@@ -695,9 +712,13 @@ BOOL isTabSelected = NO;
         feedbackGenerator = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleMedium];
     });
     // Get objects used to seek nicely in the video player
-    static YTMainAppVideoPlayerOverlayViewController *mainVideoPlayerController = (YTMainAppVideoPlayerOverlayViewController *)self.childViewControllers.firstObject;
-    static YTPlayerBarController *playerBarController = mainVideoPlayerController.playerBarController;
-    static YTInlinePlayerBarContainerView *playerBar = playerBarController.playerBar;
+    // NOTE: These must NOT be static - the view hierarchy can change between gesture invocations
+    YTMainAppVideoPlayerOverlayViewController *mainVideoPlayerController = (YTMainAppVideoPlayerOverlayViewController *)self.childViewControllers.firstObject;
+    if (!mainVideoPlayerController) return;
+    YTPlayerBarController *playerBarController = mainVideoPlayerController.playerBarController;
+    if (!playerBarController) return;
+    YTInlinePlayerBarContainerView *playerBar = playerBarController.playerBar;
+    if (!playerBar) return;
 
 /***** Helper functions for adjusting player state *****/
     // Helper function to adjust brightness
@@ -960,23 +981,30 @@ BOOL isTabSelected = NO;
 %new
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer {
     if ([gestureRecognizer isKindOfClass:[UIPanGestureRecognizer class]] && [otherGestureRecognizer isKindOfClass:[UIPanGestureRecognizer class]]) {
-        // Do not allow this gesture to activate with the normal seek bar gesture
-        YTMainAppVideoPlayerOverlayViewController *mainVideoPlayerController = (YTMainAppVideoPlayerOverlayViewController *)self.childViewControllers.firstObject;
-        YTPlayerBarController *playerBarController = mainVideoPlayerController.playerBarController;
-        YTInlinePlayerBarContainerView *playerBar = playerBarController.playerBar;
-        if (otherGestureRecognizer == playerBar.scrubGestureRecognizer) {
-            return NO;
-        }
-        // Do not allow this gesture to activate with the fine scrubber gesture
-        YTFineScrubberFilmstripView *fineScrubberFilmstrip = playerBar.fineScrubberFilmstrip;
-        if (!fineScrubberFilmstrip) {
+        @try {
+            // Do not allow this gesture to activate with the normal seek bar gesture
+            YTMainAppVideoPlayerOverlayViewController *mainVideoPlayerController = (YTMainAppVideoPlayerOverlayViewController *)self.childViewControllers.firstObject;
+            if (!mainVideoPlayerController) return YES;
+            YTPlayerBarController *playerBarController = mainVideoPlayerController.playerBarController;
+            if (!playerBarController) return YES;
+            YTInlinePlayerBarContainerView *playerBar = playerBarController.playerBar;
+            if (!playerBar) return YES;
+            if (otherGestureRecognizer == playerBar.scrubGestureRecognizer) {
+                return NO;
+            }
+            // Do not allow this gesture to activate with the fine scrubber gesture
+            YTFineScrubberFilmstripView *fineScrubberFilmstrip = playerBar.fineScrubberFilmstrip;
+            if (!fineScrubberFilmstrip) {
+                return YES;
+            }
+            YTFineScrubberFilmstripCollectionView *filmstripCollectionView = [fineScrubberFilmstrip valueForKey:@"_filmstripCollectionView"];
+            if (filmstripCollectionView && otherGestureRecognizer == filmstripCollectionView.panGestureRecognizer) {
+                return NO;
+            }
+        } @catch (NSException *e) {
+            NSLog(@"[YTLitePlus] gestureRecognizer:shouldRecognizeSimultaneously: failed: %@", e);
             return YES;
         }
-        YTFineScrubberFilmstripCollectionView *filmstripCollectionView = [fineScrubberFilmstrip valueForKey:@"_filmstripCollectionView"];
-        if (filmstripCollectionView && otherGestureRecognizer == filmstripCollectionView.panGestureRecognizer) {
-            return NO;
-        }
-
     }
     return YES;
 }
@@ -1222,6 +1250,10 @@ NSInteger pageStyle = 0;
 
 # pragma mark - ctor
 %ctor {
+    // Determine if we're running on YouTube 21.x+ to guard incompatible hooks
+    NSString *ytVersion = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleShortVersionString"];
+    BOOL isYT21OrLater = ([ytVersion compare:@"21.0" options:NSNumericSearch] != NSOrderedAscending);
+
     %init;
     // Access YouGroupSettings methods
     dlopen([[NSString stringWithFormat:@"%@/Frameworks/YouGroupSettings.dylib", [[NSBundle mainBundle] bundlePath]] UTF8String], RTLD_LAZY);
@@ -1238,7 +1270,9 @@ NSInteger pageStyle = 0;
         %init(giPhoneLayout);
     }
     if (IsEnabled(@"bigYTMiniPlayer_enabled") && (UIDevice.currentDevice.userInterfaceIdiom != UIUserInterfaceIdiomPad)) {
-        %init(Main);
+        if (%c(YTWatchMiniBarView)) {
+            %init(Main);
+        }
     }
     if (IsEnabled(@"hideVideoPlayerShadowOverlayButtons_enabled")) {
         %init(gHideVideoPlayerShadowOverlayButtons);
@@ -1246,8 +1280,11 @@ NSInteger pageStyle = 0;
     if (IsEnabled(@"hideHeatwaves_enabled")) {
         %init(gHideHeatwaves);
     }
-    if (IsEnabled(@"ytNoModernUI_enabled")) {
+    // YTNoModernUI spoofs app version to 17.38.10 - this is incompatible with YouTube 21.x+
+    if (IsEnabled(@"ytNoModernUI_enabled") && !isYT21OrLater) {
         %init(gYTNoModernUI);
+    } else if (IsEnabled(@"ytNoModernUI_enabled") && isYT21OrLater) {
+        NSLog(@"[YTLitePlus] YTNoModernUI disabled on YouTube 21.x+ to prevent crashes");
     }
     if (IsEnabled(@"disableAccountSection_enabled")) {
         %init(gDisableAccountSection);
@@ -1286,16 +1323,24 @@ NSInteger pageStyle = 0;
         %init(gFullscreenToTheRight);
     }
     if (IsEnabled(@"YTTapToSeek_enabled")) {
-        %init(gYTTapToSeek);
+        if (%c(YTInlinePlayerBarContainerView)) {
+            %init(gYTTapToSeek);
+        }
     }
     if (IsEnabled(@"disablePullToFull_enabled")) {
-        %init(gDisablePullToFull);
+        if (%c(YTWatchPullToFullController)) {
+            %init(gDisablePullToFull);
+        }
     }
     if (IsEnabled(@"disableEngagementOverlay_enabled")) {
-        %init(gDisableEngagementOverlay);
+        if (%c(YTFullscreenEngagementOverlayController)) {
+            %init(gDisableEngagementOverlay);
+        }
     }
     if (IsEnabled(@"playerGestures_enabled")) {
-        %init(gPlayerGestures);
+        if (%c(YTWatchLayerViewController) && %c(YTPlayerViewController)) {
+            %init(gPlayerGestures);
+        }
     }
     if (IsEnabled(@"videoPlayerButton_enabled")) {
         %init(gVideoPlayerButton);

@@ -252,7 +252,12 @@ UIColor *customColor = [UIColor colorWithRed:0.129 green:0.129 blue:0.129 alpha:
 - (void)layoutSubviews {
     %orig();
     if (isDarkMode()) {
-    MSHookIvar<YTTopAlignedView *>(self, "_contentView").backgroundColor = customColor;
+        @try {
+            Ivar ivar = class_getInstanceVariable([self class], "_contentView");
+            if (ivar) MSHookIvar<YTTopAlignedView *>(self, "_contentView").backgroundColor = customColor;
+        } @catch (NSException *e) {
+            NSLog(@"[YTLitePlus] YTTopAlignedView _contentView ivar access failed: %@", e);
+        }
     }
 }
 %end
@@ -343,9 +348,16 @@ UIColor *customColor = [UIColor colorWithRed:0.129 green:0.129 blue:0.129 alpha:
 - (void)layoutSubviews {
     %orig();
     if (isDarkMode()) {
-    MSHookIvar<YTQTMButton *>(self, "_cancelButton").backgroundColor = customColor;
-    MSHookIvar<UIControl *>(self, "_safeArea").backgroundColor = customColor;
-  }
+        @try {
+            Ivar ivar;
+            ivar = class_getInstanceVariable([self class], "_cancelButton");
+            if (ivar) MSHookIvar<YTQTMButton *>(self, "_cancelButton").backgroundColor = customColor;
+            ivar = class_getInstanceVariable([self class], "_safeArea");
+            if (ivar) MSHookIvar<UIControl *>(self, "_safeArea").backgroundColor = customColor;
+        } @catch (NSException *e) {
+            NSLog(@"[YTLitePlus] YTShareMainView ivar access failed: %@", e);
+        }
+    }
 }
 %end
 %hook _ASDisplayView
